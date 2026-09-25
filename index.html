@@ -62,6 +62,9 @@ header h1{font-size:clamp(1.7rem,3.6vw,2.4rem);font-weight:800;letter-spacing:-.
 .due li[data-p="out"]{background:var(--lime-soft);--stripe:var(--lime)}
 .due li[data-p="app"]{background:var(--pink-soft);--stripe:var(--pink)}
 .due .tag{display:inline-block;font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:999px;margin-right:6px;background:var(--stripe);color:#17191B;vertical-align:1px}
+.due .status{display:block;font-size:.72rem;font-weight:600;color:var(--muted);text-align:right;margin-top:3px}
+.more{font:inherit;font-size:.85rem;font-weight:600;margin-top:12px;padding:8px 18px;border-radius:999px;border:1.5px solid var(--line);background:var(--shell);color:var(--ink);cursor:pointer}
+.more[hidden]{display:none}
 .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.8rem;color:var(--muted);margin-top:4px}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .legend i{width:12px;height:12px;border-radius:4px;display:inline-block}
@@ -118,6 +121,13 @@ figcaption p{margin:2px 0 12px;color:var(--muted);font-size:.8rem}
     <h2 id="due-h">Follow-ups due</h2>
     <div class="legend"><span><i style="background:var(--lime)"></i>Cold outreach</span><span><i style="background:var(--pink)"></i>Applications</span></div>
     <ul id="due"></ul>
+  </section>
+
+  <section class="due" aria-labelledby="latest-h">
+    <h2 id="latest-h">Latest activity</h2>
+    <div class="legend"><span><i style="background:var(--lime)"></i>Cold outreach</span><span><i style="background:var(--pink)"></i>Applications</span></div>
+    <ul id="latest"></ul>
+    <button class="more" id="latest-more" hidden>Show more</button>
   </section>
 
   <div class="switch" role="tablist" aria-label="Pathway">
@@ -345,6 +355,45 @@ function renderDue(out, app){
   }).join('') : `<li class="empty">Nothing due in the next ${CONFIG.followUpWindowDays} days.</li>`;
 }
 
+let latestLimit = 8;
+function latestDate(r, cols){
+  const ds = cols.map(c => parseDate(get(r,c))).filter(Boolean);
+  return ds.length ? new Date(Math.max(...ds)) : null;
+}
+function ago(d){
+  const n = days(d, today);
+  if(n <= 0) return n < 0 ? fmtDay(d) : 'Today';
+  if(n === 1) return 'Yesterday';
+  if(n < 7) return `${n} days ago`;
+  return fmtDay(d);
+}
+function renderLatest(out, app){
+  const items = [];
+  out.forEach(r => {
+    const d = latestDate(r, ['date sent','follow-up 1 date','follow-up 2 date','reply date','meeting date']);
+    if(!d) return;
+    const name = get(r,'contact name'), co = get(r,'company');
+    items.push({d, p:'out', title: name || co, who: [name ? co : '', get(r,'role or target role')].filter(Boolean).join(', '), status: get(r,'outreach status')});
+  });
+  app.forEach(r => {
+    const d = latestDate(r, ['date applied','first response date']);
+    if(!d) return;
+    items.push({d, p:'app', title: get(r,'company'), who: get(r,'role or target role'), status: get(r,'application status')});
+  });
+  items.sort((a,b) => b.d - a.d);
+  $('latest').innerHTML = items.length ? items.slice(0, latestLimit).map(i =>
+    `<li data-p="${i.p}"><span class="ic" aria-hidden="true">${i.p === 'out' ? '💌' : '📄'}</span><div><b>${esc(i.title || 'Untitled')}</b><span class="who"><span class="tag">${i.p === 'out' ? 'Outreach' : 'Application'}</span>${esc(i.who)}</span></div><div><span class="when">${ago(i.d)}</span>${i.status ? `<span class="status">${esc(i.status)}</span>` : ''}</div></li>`
+  ).join('') : '<li class="empty">No activity yet. Add a date sent or date applied to see it here.</li>';
+  const more = $('latest-more');
+  more.hidden = items.length <= 8;
+  more.textContent = latestLimit >= items.length ? 'Show less' : 'Show more';
+}
+document.getElementById('latest-more').addEventListener('click', () => {
+  const total = (DATA.out.length + DATA.app.length);
+  latestLimit = latestLimit >= total || $('latest-more').textContent === 'Show less' ? 8 : latestLimit + 12;
+  renderLatest(DATA.out, DATA.app);
+});
+
 // ---------- tabs ----------
 function showView(v){
   document.querySelectorAll('.switch button').forEach(x => x.setAttribute('aria-selected', x.dataset.v === v));
@@ -359,7 +408,7 @@ try { if(localStorage.getItem('dash-view') === 'app') showView('app'); } catch(e
 
 // ---------- boot ----------
 let DATA = null;
-function renderAll(){ if(!DATA) return; renderDue(DATA.out, DATA.app); renderOutreach(DATA.out); renderApps(DATA.app); }
+function renderAll(){ if(!DATA) return; renderDue(DATA.out, DATA.app); renderLatest(DATA.out, DATA.app); renderOutreach(DATA.out); renderApps(DATA.app); }
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderAll);
 
 (async function(){
