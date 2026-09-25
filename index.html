@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>✨ the dashboard that will find Gabi a job ✨</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✨</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --page:#E6E8DC;--shell:#FFFFFF;--surface:#F5F5F2;--ink:#17191B;--muted:#8B8E85;--line:#ECEDE6;
+  --lime:#D7EB5B;--lime-soft:#EFF7C4;--lime-deep:#A8C229;
+  --pink:#F4C6F2;--pink-soft:#FBE6FA;--pink-deep:#D98AD7;
+  --blue:#7FB2D8;--rose:#F3C7CD;--late:#F0643F;
+  --out:var(--lime-deep);--out-soft:var(--lime-soft);--out-strong:var(--lime);
+  --app:var(--pink-deep);--app-soft:var(--pink-soft);--app-strong:var(--pink);
+  --accent:var(--lime-deep);
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --page:#15170F;--shell:#1F221A;--surface:#282C22;--ink:#EEF0E6;--muted:#9A9E92;--line:#33372C;
+    --lime-soft:#3A4318;--pink-soft:#46293F;
+  }
+}
+:root[data-theme="dark"]{
+  --page:#15170F;--shell:#1F221A;--surface:#282C22;--ink:#EEF0E6;--muted:#9A9E92;--line:#33372C;
+  --lime-soft:#3A4318;--pink-soft:#46293F;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--page);color:var(--ink);font:15px/1.55 "Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+.page{padding:32px 20px 56px}
+.shell{max-width:1180px;margin:0 auto;background:var(--shell);border-radius:32px;padding:26px 30px 44px;box-shadow:0 30px 60px -40px rgba(60,70,30,.35)}
+@media (max-width:600px){.page{padding:12px 8px 32px}.shell{padding:20px 16px 32px;border-radius:24px}}
+h1,h2,h3{line-height:1.2;margin:0}
+
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:34px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600}
+.pill{display:inline-flex;align-items:center;gap:8px;font-size:.82rem;font-weight:600;padding:7px 14px;border-radius:999px;background:var(--surface);color:var(--ink)}
+.pill::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--muted)}
+.pill[data-mode="live"]{background:var(--lime-soft)}
+.pill[data-mode="live"]::before{background:var(--lime-deep)}
+
+header h1{font-size:clamp(1.7rem,3.6vw,2.4rem);font-weight:800;letter-spacing:-.02em}
+.sub{color:var(--muted);margin:6px 0 0;font-size:.92rem}
+.banner{margin-top:16px;padding:12px 18px;border-radius:16px;font-size:.9rem;font-weight:500;background:linear-gradient(90deg,var(--lime-soft),var(--pink-soft))}
+.banner.err{background:#FDE3DA;color:#8F2E14}
+.banner:empty{display:none}
+
+.due{margin-top:30px}
+.due h2{font-size:1.1rem;font-weight:700}
+.due ul{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:10px}
+.due li{position:relative;overflow:hidden;display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:14px;align-items:center;padding:12px 16px 14px 12px;background:var(--surface);border-radius:18px}
+.due li::after{content:"";position:absolute;left:0;right:0;bottom:0;height:4px;background:var(--stripe)}
+.due li[data-p="out"]{background:var(--lime-soft);--stripe:var(--lime)}
+.due li[data-p="app"]{background:var(--pink-soft);--stripe:var(--pink)}
+.due .tag{display:inline-block;font-size:.7rem;font-weight:700;padding:2px 8px;border-radius:999px;margin-right:6px;background:var(--stripe);color:#17191B;vertical-align:1px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:.8rem;color:var(--muted);margin-top:4px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:12px;height:12px;border-radius:4px;display:inline-block}
+.due .ic{width:40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:1.1rem;background:var(--shell)}
+.due li b{font-weight:700;font-size:.93rem;display:block}
+.due li .who{color:var(--muted);font-size:.82rem}
+.due .when{font-size:.8rem;font-weight:700;white-space:nowrap;padding:5px 11px;border-radius:10px;background:var(--shell)}
+.due .when.late{background:var(--late);color:#fff}
+.due .empty{display:block;color:var(--muted);text-align:center;padding:16px}
+.due .empty::after{display:none}
+
+.switch{display:flex;gap:8px;margin-top:36px;flex-wrap:wrap}
+.switch button{font:inherit;font-size:.9rem;font-weight:600;border:1.5px solid transparent;background:var(--surface);color:var(--ink);padding:9px 26px;border-radius:999px;cursor:pointer}
+.switch button[aria-selected="true"]{background:var(--shell);border-color:var(--sel)}
+.switch button[data-v="out"]{--sel:var(--lime)}
+.switch button[data-v="app"]{--sel:var(--pink-deep)}
+.view[data-v="out"]{--accent:var(--out);--soft:var(--out-soft);--strong:var(--out-strong)}
+.view[data-v="app"]{--accent:var(--app);--soft:var(--app-soft);--strong:var(--app-strong)}
+
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:20px}
+.kpi{padding:16px 18px;border-radius:20px;background:var(--soft)}
+.kpi:first-child,.kpi:nth-child(2){background:var(--strong);color:#17191B}
+.kpi strong{display:block;font-size:1.65rem;font-weight:700;letter-spacing:-.02em;line-height:1.15;font-variant-numeric:tabular-nums}
+.kpi span{font-size:.8rem;font-weight:500;opacity:.75}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;margin-top:14px}
+@media (max-width:440px){.grid{grid-template-columns:1fr}}
+figure{margin:0;padding:20px;background:var(--shell);border:1px solid var(--line);border-radius:24px;min-width:0}
+figure.wide{grid-column:1/-1}
+figcaption h3{font-size:1rem;font-weight:700}
+figcaption p{margin:2px 0 12px;color:var(--muted);font-size:.8rem}
+.chart{position:relative;height:240px}
+.none{color:var(--muted);font-size:.9rem;padding:30px 0;text-align:center}
+:focus-visible{outline:2px solid var(--lime-deep);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="page"><div class="shell">
+  <div class="top">
+    <div class="brand">
+      <svg width="34" height="30" viewBox="0 0 34 30" aria-hidden="true"><circle cx="11" cy="19" r="8" fill="none" stroke="#D7EB5B" stroke-width="2.5"/><circle cx="23" cy="19" r="8" fill="none" stroke="#F4C6F2" stroke-width="2.5"/><circle cx="17" cy="9" r="6" fill="none" stroke="#D7EB5B" stroke-width="2.5"/></svg>
+      Gabi's job hunt
+    </div>
+    <span class="pill" id="live" data-mode="sample">Loading</span>
+  </div>
+
+  <header>
+    <h1>✨ the dashboard that will find Gabi a job ✨</h1>
+    <p class="sub" id="updated">Loading your data…</p>
+    <div class="banner" id="banner" role="status"></div>
+  </header>
+
+  <section class="due" aria-labelledby="due-h">
+    <h2 id="due-h">Follow-ups due</h2>
+    <div class="legend"><span><i style="background:var(--lime)"></i>Cold outreach</span><span><i style="background:var(--pink)"></i>Applications</span></div>
+    <ul id="due"></ul>
+  </section>
+
+  <div class="switch" role="tablist" aria-label="Pathway">
+    <button role="tab" data-v="out" aria-selected="true" aria-controls="view-out" id="tab-out">Cold outreach</button>
+    <button role="tab" data-v="app" aria-selected="false" aria-controls="view-app" id="tab-app">Applications</button>
+  </div>
+
+  <section class="view" data-v="out" id="view-out" role="tabpanel" aria-labelledby="tab-out">
+    <div class="kpis" id="kpi-out"></div>
+    <div class="grid">
+      <figure class="wide"><figcaption><h3>Messages sent per week</h3><p>Last 12 weeks, by date sent</p></figcaption><div class="chart"><canvas id="c-out-week"></canvas></div></figure>
+      <figure><figcaption><h3>Where each conversation stands</h3><p>Current outreach status</p></figcaption><div class="chart"><canvas id="c-out-status"></canvas></div></figure>
+      <figure><figcaption><h3>Reply rate by channel</h3><p>Share of sent messages that got any reply</p></figcaption><div class="chart"><canvas id="c-out-channel"></canvas></div></figure>
+      <figure><figcaption><h3>Which templates get replies</h3><p>Reply rate by template version</p></figcaption><div class="chart"><canvas id="c-out-template"></canvas></div></figure>
+      <figure><figcaption><h3>Warm vs. cold</h3><p>Reply rate by relationship</p></figcaption><div class="chart"><canvas id="c-out-rel"></canvas></div></figure>
+    </div>
+  </section>
+
+  <section class="view" data-v="app" id="view-app" role="tabpanel" aria-labelledby="tab-app" hidden>
+    <div class="kpis" id="kpi-app"></div>
+    <div class="grid">
+      <figure class="wide"><figcaption><h3>Applications per week</h3><p>Last 12 weeks, by date applied</p></figcaption><div class="chart"><canvas id="c-app-week"></canvas></div></figure>
+      <figure><figcaption><h3>Pipeline funnel</h3><p>How many applications reached each stage</p></figcaption><div class="chart"><canvas id="c-app-funnel"></canvas></div></figure>
+      <figure><figcaption><h3>Response rate by source</h3><p>Any response, including rejections</p></figcaption><div class="chart"><canvas id="c-app-source"></canvas></div></figure>
+      <figure><figcaption><h3>Where rejections happen</h3><p>From the "Rejected at" column</p></figcaption><div class="chart"><canvas id="c-app-reject"></canvas></div></figure>
+      <figure><figcaption><h3>Do referrals lead to interviews?</h3><p>Interview rate, referred or linked to outreach vs. everything else</p></figcaption><div class="chart"><canvas id="c-app-ref"></canvas></div></figure>
+    </div>
+  </section>
+</div></div>
+
+<script src="config.js"></script>
+<script>
+const CONFIG = Object.assign({ outreachCsv:'', applicationsCsv:'', followUpWindowDays:7 }, window.DASHBOARD_CONFIG || {});
+
+const REPLIED = new Set(['Replied','Meeting scheduled','Met','Referral given','Declined']);
+const MET = new Set(['Meeting scheduled','Met','Referral given']);
+const STAGE_RANK = {'Applied':0,'Screening':1,'Interviewing':2,'Final round':3,'Offer':4};
+const REJECT_RANK = {'Resume':0,'Screen':1,'Interview':2,'Final round':3};
+const CLOSED_OUT = new Set(['Declined','No response']);
+const CLOSED_APP = new Set(['Rejected','Withdrawn']);
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const today = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
+const days = (a, b) => Math.round((b - a) / 864e5);
+function parseDate(s){
+  if(!s) return null; s = String(s).trim();
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m) return new Date(+m[1], m[2]-1, +m[3]);
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/); // US format M/D/YYYY
+  if(m){ let y = +m[3]; if(y < 100) y += 2000; return new Date(y, m[1]-1, +m[2]); }
+  const d = new Date(s); if(isNaN(d)) return null; d.setHours(0,0,0,0); return d;
+}
+function weekStart(d){ const x = new Date(d); x.setDate(x.getDate() - ((x.getDay()+6)%7)); x.setHours(0,0,0,0); return x; }
+const fmtDay = d => d.toLocaleDateString(undefined, {month:'short', day:'numeric'});
+const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
+const avg = arr => arr.length ? arr.reduce((s,v)=>s+v,0) / arr.length : null;
+
+// Columns are matched by header name, so reordering or hiding columns in the sheet is fine.
+function normalize(rows){
+  return rows.map(r => { const o = {}; for(const k in r) o[k.trim().toLowerCase()] = (r[k] ?? '').toString().trim(); return o; })
+             .filter(o => Object.values(o).some(v => v));
+}
+const get = (row, name) => row[name.toLowerCase()] || '';
+function loadCsv(url){
+  return new Promise((resolve, reject) => {
+    Papa.parse(url + (url.includes('?') ? '&' : '?') + 't=' + Date.now(), {
+      download:true, header:true, skipEmptyLines:true,
+      complete: r => resolve(normalize(r.data)), error: reject
+    });
+  });
+}
+
+// ---------- sample data ----------
+function sample(){
+  let seed = 7; const rnd = () => (seed = (seed * 9301 + 49297) % 233280) / 233280;
+  const pick = a => a[Math.floor(rnd() * a.length)];
+  const iso = d => d.toISOString().slice(0,10);
+  const ago = n => { const d = new Date(today); d.setDate(d.getDate() - n); return d; };
+  const cos = ['Northwind','Fernhill Labs','Cascade Health','Tidewater Co','Mapleworks','Lumen Studio','Harbor Collective','Greenline','Brightpath','Oakridge Design'];
+  const out = [], app = [];
+  for(let i = 1; i <= 26; i++){
+    const sent = ago(Math.floor(rnd()*80));
+    const status = pick(['Sent','Sent','Replied','Meeting scheduled','Met','Referral given','No response','No response','Declined','Drafted']);
+    const replied = REPLIED.has(status);
+    const nf = new Date(sent); nf.setDate(nf.getDate() + 7 + Math.floor(rnd()*10));
+    out.push({'id':'OUT-'+String(i).padStart(3,'0'),'company':pick(cos),'role or target role':pick(['Product designer','UX researcher','Program manager']),
+      'contact name':pick(['Sam Rivera','Jordan Lee','Priya Natarajan','Alex Kim','Morgan Diaz','Taylor Brooks']),'relationship':pick(['Cold','Cold','Warm','Mutual intro']),
+      'channel':pick(['Email','LinkedIn DM','LinkedIn DM','Event','Intro']),'date sent':status==='Drafted'?'':iso(sent),
+      'template version':pick(['v1','v2','v3']),'outreach status':status,
+      'reply date':replied?iso(new Date(sent.getTime()+(2+Math.floor(rnd()*8))*864e5)):'',
+      'next follow-up date':CLOSED_OUT.has(status)?'':iso(nf),'linked application id':status==='Referral given'?'APP-00'+(1+Math.floor(rnd()*9)):''});
+  }
+  for(let i = 1; i <= 32; i++){
+    const applied = ago(Math.floor(rnd()*84));
+    const status = pick(['Applied','Applied','Screening','Interviewing','Final round','Offer','Rejected','Rejected','Rejected','Ghosted','Saved']);
+    const nf = new Date(applied); nf.setDate(nf.getDate() + 10 + Math.floor(rnd()*10));
+    const src = pick(['LinkedIn','LinkedIn','Company site','Referral','Job board','Recruiter']);
+    app.push({'id':'APP-'+String(i).padStart(3,'0'),'company':pick(cos),'role or target role':pick(['Product designer','UX researcher','Program manager','Design strategist']),
+      'date applied':status==='Saved'?'':iso(applied),'where you found it':src,'application status':status,
+      'first response date':['Applied','Ghosted','Saved'].includes(status)?'':iso(new Date(applied.getTime()+(4+Math.floor(rnd()*14))*864e5)),
+      'rejected at':status==='Rejected'?pick(['Resume','Resume','Screen','Interview','Final round']):'',
+      'next follow-up date':CLOSED_APP.has(status)?'':iso(nf),'linked outreach id':src==='Referral'?'OUT-0'+(10+i):''});
+  }
+  return {out, app};
+}
+
+// ---------- charts ----------
+Chart.defaults.font.family = '"Plus Jakarta Sans", system-ui, sans-serif';
+Chart.defaults.font.size = 12;
+const charts = {};
+function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+// pastel palette from the reference: lime, pink, blue, rose, rotating per bar
+function palette(path){ return path === 'out' ? ['#D7EB5B','#F4C6F2','#7FB2D8','#F3C7CD'] : ['#F4C6F2','#D7EB5B','#7FB2D8','#F3C7CD']; }
+function bar(id, labels, data, opt = {}){
+  const canvas = $(id);
+  if(charts[id]) charts[id].destroy();
+  const holder = canvas.parentElement;
+  holder.querySelector('.none')?.remove();
+  if(!labels.length){ canvas.hidden = true; holder.insertAdjacentHTML('beforeend','<div class="none">Not enough data yet</div>'); return; }
+  canvas.hidden = false;
+  const muted = css('--muted'), line = css('--line');
+  const pal = palette(opt.path);
+  const isLine = opt.type === 'line';
+  const colors = isLine ? pal[0] : (opt.multi ? labels.map((_,i) => pal[i % pal.length]) : pal[0]);
+  charts[id] = new Chart(canvas, {
+    type: isLine ? 'line' : 'bar',
+    data: { labels, datasets: [{ data, backgroundColor: isLine ? 'rgba(215,235,91,.25)' : colors, borderColor: isLine ? '#A8C229' : 'transparent',
+      borderWidth: isLine ? 3 : 0, borderRadius: 10, borderSkipped: false, tension: .45, pointRadius: 0, pointHoverRadius: 5, pointBackgroundColor:'#A8C229', fill: isLine,
+      barPercentage: .7, categoryPercentage: .8 }] },
+    options: {
+      indexAxis: opt.horizontal ? 'y' : 'x', maintainAspectRatio: false, animation: false,
+      plugins: { legend: { display: false }, tooltip: { backgroundColor:'#17191B', cornerRadius:10, padding:10, displayColors:false,
+        callbacks: { label: c => opt.pct ? `${c.raw}%` + (opt.n ? ` of ${opt.n[c.dataIndex]}` : '') : String(c.raw) } } },
+      scales: {
+        x: { border:{display:false}, grid: { color: opt.horizontal ? line : 'transparent' }, ticks: { color: muted, callback: opt.horizontal && opt.pct ? v => v + '%' : undefined, maxRotation:0, autoSkipPadding:10 }, max: opt.horizontal && opt.pct ? 100 : undefined, beginAtZero: true },
+        y: { border:{display:false}, grid: { color: opt.horizontal ? 'transparent' : line }, ticks: { color: muted, precision: 0, callback: !opt.horizontal && opt.pct ? v => v + '%' : undefined }, max: !opt.horizontal && opt.pct ? 100 : undefined, beginAtZero: true }
+      }
+    }
+  });
+}
+function perWeek(rows, col){
+  const start = weekStart(new Date(today.getTime() - 11*7*864e5));
+  const buckets = Array.from({length:12}, (_,i) => new Date(start.getTime() + i*7*864e5));
+  const counts = buckets.map(() => 0);
+  rows.forEach(r => { const d = parseDate(get(r,col)); if(!d || d < start) return; const i = Math.floor(days(start, weekStart(d)) / 7); if(i >= 0 && i < 12) counts[i]++; });
+  return { labels: buckets.map(fmtDay), counts };
+}
+function rateBy(rows, col, success){
+  const g = {};
+  rows.forEach(r => { const k = get(r,col); if(!k) return; (g[k] ||= {n:0, s:0}); g[k].n++; if(success(r)) g[k].s++; });
+  const keys = Object.keys(g).sort((a,b) => g[b].n - g[a].n);
+  return { labels: keys, rates: keys.map(k => pct(g[k].s, g[k].n)), n: keys.map(k => g[k].n) };
+}
+function kpis(el, items){ $(el).innerHTML = items.map(([v, l]) => `<div class="kpi"><strong>${v}</strong><span>${l}</span></div>`).join(''); }
+
+// ---------- views ----------
+function renderOutreach(rows){
+  const P = {path:'out'};
+  const sent = rows.filter(r => { const s = get(r,'outreach status'); return s && s !== 'Drafted'; });
+  const replied = r => REPLIED.has(get(r,'outreach status')) || !!get(r,'reply date');
+  const lags = sent.map(r => { const a = parseDate(get(r,'date sent')), b = parseDate(get(r,'reply date')); return a && b ? days(a,b) : null; }).filter(v => v != null && v >= 0);
+  const a = avg(lags);
+  kpis('kpi-out', [
+    [sent.length, 'messages sent'],
+    [pct(sent.filter(replied).length, sent.length) + '%', 'reply rate'],
+    [rows.filter(r => MET.has(get(r,'outreach status'))).length, 'meetings'],
+    [rows.filter(r => get(r,'outreach status') === 'Referral given').length, 'referrals'],
+    [rows.filter(r => get(r,'linked application id')).length, 'led to applications'],
+    [a == null ? '–' : a.toFixed(1), 'avg. days to reply']
+  ]);
+  const w = perWeek(sent, 'date sent');
+  bar('c-out-week', w.labels, w.counts, {...P, type:'line'});
+  const order = ['Drafted','Sent','Replied','Meeting scheduled','Met','Referral given','No response','Declined'];
+  const sc = order.map(s => rows.filter(r => get(r,'outreach status') === s).length);
+  const keep = order.map((_,i) => i).filter(i => sc[i]);
+  bar('c-out-status', keep.map(i => order[i]), keep.map(i => sc[i]), {...P, horizontal:true, multi:true});
+  [['c-out-channel','channel'],['c-out-template','template version'],['c-out-rel','relationship']].forEach(([id,col]) => {
+    const r = rateBy(sent, col, replied); bar(id, r.labels, r.rates, {...P, pct:true, n:r.n, horizontal:true, multi:true});
+  });
+}
+function rank(r){
+  const s = get(r,'application status');
+  if(s in STAGE_RANK) return STAGE_RANK[s];
+  if(s === 'Rejected') return REJECT_RANK[get(r,'rejected at')] ?? 0;
+  return 0;
+}
+function renderApps(rows){
+  const P = {path:'app'};
+  const applied = rows.filter(r => { const s = get(r,'application status'); return s && s !== 'Saved'; });
+  const responded = r => !!get(r,'first response date') || rank(r) > 0 || get(r,'application status') === 'Rejected';
+  const lags = applied.map(r => { const a = parseDate(get(r,'date applied')), b = parseDate(get(r,'first response date')); return a && b ? days(a,b) : null; }).filter(v => v != null && v >= 0);
+  const a = avg(lags);
+  kpis('kpi-app', [
+    [applied.length, 'applications'],
+    [pct(applied.filter(responded).length, applied.length) + '%', 'response rate'],
+    [applied.filter(r => rank(r) >= 2).length, 'reached interviews'],
+    [applied.filter(r => get(r,'application status') === 'Offer').length, 'offers'],
+    [rows.filter(r => get(r,'application status') === 'Saved').length, 'saved to apply'],
+    [a == null ? '–' : a.toFixed(1), 'avg. days to first response']
+  ]);
+  const w = perWeek(applied, 'date applied');
+  bar('c-app-week', w.labels, w.counts, P);
+  const stages = Object.keys(STAGE_RANK);
+  bar('c-app-funnel', applied.length ? stages : [], stages.map((_,k) => applied.filter(r => rank(r) >= k).length), {...P, horizontal:true, multi:true});
+  const src = rateBy(applied, 'where you found it', responded);
+  bar('c-app-source', src.labels, src.rates, {...P, pct:true, n:src.n, horizontal:true, multi:true});
+  const rj = Object.keys(REJECT_RANK), rc = rj.map(k => rows.filter(r => get(r,'rejected at') === k).length);
+  bar('c-app-reject', rc.some(Boolean) ? rj : [], rc, {...P, horizontal:true, multi:true});
+  const isRef = r => get(r,'where you found it') === 'Referral' || !!get(r,'linked outreach id');
+  const groups = [['Referred or linked', applied.filter(isRef)], ['Everything else', applied.filter(r => !isRef(r))]].filter(g => g[1].length);
+  bar('c-app-ref', groups.map(g => g[0]), groups.map(g => pct(g[1].filter(r => rank(r) >= 2).length, g[1].length)), {...P, pct:true, n:groups.map(g => g[1].length), multi:true});
+}
+function renderDue(out, app){
+  const limit = new Date(today.getTime() + CONFIG.followUpWindowDays * 864e5);
+  const items = [];
+  out.forEach(r => { const d = parseDate(get(r,'next follow-up date')); if(d && d <= limit && !CLOSED_OUT.has(get(r,'outreach status'))) items.push({d, p:'out', title:get(r,'contact name') || get(r,'company'), who:[get(r,'contact name') ? get(r,'company') : '', get(r,'role or target role')].filter(Boolean).join(', ')}); });
+  app.forEach(r => { const d = parseDate(get(r,'next follow-up date')); if(d && d <= limit && !CLOSED_APP.has(get(r,'application status'))) items.push({d, p:'app', title:get(r,'company'), who:get(r,'role or target role')}); });
+  items.sort((a,b) => a.d - b.d);
+  $('due').innerHTML = items.length ? items.map(i => {
+    const n = days(today, i.d);
+    const when = n < 0 ? `${-n} day${n === -1 ? '' : 's'} overdue` : n === 0 ? 'Today' : fmtDay(i.d);
+    const icon = i.p === 'out' ? '💌' : '📄';
+    return `<li data-p="${i.p}"><span class="ic" aria-hidden="true">${icon}</span><div><b>${esc(i.title || 'Untitled')}</b><span class="who"><span class="tag">${i.p === 'out' ? 'Outreach' : 'Application'}</span>${esc(i.who)}</span></div><span class="when ${n < 0 ? 'late' : ''}">${when}</span></li>`;
+  }).join('') : `<li class="empty">Nothing due in the next ${CONFIG.followUpWindowDays} days.</li>`;
+}
+
+// ---------- tabs ----------
+function showView(v){
+  document.querySelectorAll('.switch button').forEach(x => x.setAttribute('aria-selected', x.dataset.v === v));
+  document.querySelectorAll('.view').forEach(s => s.hidden = s.dataset.v !== v);
+}
+document.querySelectorAll('.switch button').forEach(b => b.addEventListener('click', () => {
+  showView(b.dataset.v);
+  try { localStorage.setItem('dash-view', b.dataset.v); } catch(e) {}
+  Object.values(charts).forEach(c => c.resize());
+}));
+try { if(localStorage.getItem('dash-view') === 'app') showView('app'); } catch(e) {}
+
+// ---------- boot ----------
+let DATA = null;
+function renderAll(){ if(!DATA) return; renderDue(DATA.out, DATA.app); renderOutreach(DATA.out); renderApps(DATA.app); }
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderAll);
+
+(async function(){
+  const live = $('live');
+  if(!CONFIG.outreachCsv || !CONFIG.applicationsCsv){
+    DATA = sample();
+    live.dataset.mode = 'sample'; live.textContent = 'Sample data';
+    $('banner').textContent = 'Showing sample data. Add your published CSV links to config.js to see your own.';
+    $('updated').textContent = 'Sample data';
+    renderAll(); return;
+  }
+  const results = await Promise.allSettled([loadCsv(CONFIG.outreachCsv), loadCsv(CONFIG.applicationsCsv)]);
+  const failed = [['Cold outreach', results[0]], ['Applications', results[1]]].filter(([,r]) => r.status === 'rejected').map(([n]) => n);
+  if(failed.length){
+    $('banner').className = 'banner err';
+    $('banner').textContent = `Couldn't load the ${failed.join(' and ')} data. Check that the tab is published to the web as CSV and that the link in config.js is complete.`;
+  }
+  DATA = { out: results[0].value || [], app: results[1].value || [] };
+  live.dataset.mode = 'live'; live.textContent = 'Live data';
+  $('updated').textContent = `Updated ${new Date().toLocaleString(undefined, {month:'short', day:'numeric', hour:'numeric', minute:'2-digit'})}. Google refreshes published sheets every few minutes.`;
+  renderAll();
+})();
+</script>
+</body>
+</html>
